@@ -1,5 +1,6 @@
 from infrapulse.checks.cpu import check_cpu
 from infrapulse.checks.disk import check_disk
+from infrapulse.checks.http import check_http
 from infrapulse.checks.memory import check_memory
 from infrapulse.checks.port import check_port
 from infrapulse.checks.process import check_process
@@ -15,6 +16,7 @@ print()
 
 cpu_result = check_cpu()
 disk_result = check_disk()
+http_result = check_http("https://httpbin.org/status/200")
 memory_result = check_memory()
 port_result = check_port("localhost", 80)
 process_result = check_process("explorer.exe")
@@ -57,3 +59,11 @@ print(f"Host: {port_result['host']}")
 print(f"Port: {port_result['value']}")
 print(f"Reachable: {'YES' if port_result['reachable'] else 'NO'}")
 print(f"Status: {port_result['status'].upper()}")
+print()
+
+print("HTTP Endpoint")
+print(f"URL: {http_result['url']}")
+print(f"Reachable: {'YES' if http_result['reachable'] else 'NO'}")
+print(f"Status Code: {http_result['value']}")
+print(f"Response Time: {http_result['response_time_ms']} ms")
+print(f"Status: {http_result['status'].upper()}")
