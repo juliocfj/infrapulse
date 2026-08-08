@@ -1,6 +1,7 @@
 from infrapulse.checks.cpu import check_cpu
 from infrapulse.checks.disk import check_disk
 from infrapulse.checks.memory import check_memory
+from infrapulse.checks.port import check_port
 from infrapulse.checks.process import check_process
 from infrapulse.checks.uptime import check_uptime
 
@@ -15,6 +16,7 @@ print()
 cpu_result = check_cpu()
 disk_result = check_disk()
 memory_result = check_memory()
+port_result = check_port("localhost", 80)
 process_result = check_process("explorer.exe")
 uptime_result = check_uptime()
 
@@ -48,3 +50,10 @@ print("Process")
 print(f"Name: {process_result['value']}")
 print(f"Running: {'YES' if process_result['running'] else 'NO'}")
 print(f"Status: {process_result['status'].upper()}")
+print()
+
+print("TCP Port")
+print(f"Host: {port_result['host']}")
+print(f"Port: {port_result['value']}")
+print(f"Reachable: {'YES' if port_result['reachable'] else 'NO'}")
+print(f"Status: {port_result['status'].upper()}")
