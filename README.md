@@ -1,15 +1,166 @@
 # InfraPulse
 
-InfraPulse is a lightweight infrastructure health monitoring and troubleshooting tool written in Python.
+[![CI](https://github.com/juliocfj/infrapulse/actions/workflows/ci.yml/badge.svg)](https://github.com/juliocfj/infrapulse/actions/workflows/ci.yml)
 
-This initial version only contains the project structure and a minimal entry point. Future versions can add modular checks for infrastructure health signals.
+InfraPulse is a lightweight infrastructure health monitoring and troubleshooting tool built with Python. It provides simple command-line checks for common system and service health signals.
+
+Repository: [juliocfj/infrapulse](https://github.com/juliocfj/infrapulse)
+
+## Features
+
+- CPU utilization monitoring
+- Memory utilization monitoring
+- Disk usage monitoring
+- System uptime
+- Process monitoring
+- TCP port reachability
+- HTTP endpoint monitoring
+- Overall health status
+- Health-based exit codes
+- YAML configuration
+- Automated unit tests
+- GitHub Actions CI
+
+## Health Status
+
+InfraPulse uses three health states:
+
+- `HEALTHY`: the check is within the expected range or reachable.
+- `WARNING`: the check is degraded but not critical.
+- `CRITICAL`: the check failed or crossed a critical threshold.
+
+The most severe status determines the Overall Health. For example, if one check is `CRITICAL`, the Overall Health is `CRITICAL`.
+
+## Exit Codes
+
+InfraPulse exits with a code based on the Overall Health:
+
+- `0` = healthy
+- `1` = warning
+- `2` = critical
+
+Exit codes make the tool useful for scripts, CI/CD pipelines, scheduled tasks, and automation systems that need to detect health without parsing the full CLI output.
 
 ## Requirements
 
 - Python 3.12+
 
-## How to Run
+## Installation
+
+```bash
+git clone https://github.com/juliocfj/infrapulse.git
+cd infrapulse
+```
+
+Create and activate a Windows virtual environment:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+Install dependencies:
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+## Configuration
+
+InfraPulse reads monitoring targets from `config.yaml`.
+
+```yaml
+process:
+  name: explorer.exe
+
+tcp:
+  host: localhost
+  port: 80
+  timeout: 2
+
+http:
+  url: https://httpbin.org/status/200
+  timeout: 3
+```
+
+These values can be changed without modifying Python code. `explorer.exe` is only an example for Windows; Linux users should configure an appropriate process such as `nginx`.
+
+## Usage
 
 ```bash
 python main.py
 ```
+
+Example output:
+
+```text
+InfraPulse - Infrastructure Health Monitor
+
+CPU
+Usage: 20.5%
+Status: HEALTHY
+
+Memory
+Usage: 72.1%
+Status: HEALTHY
+
+TCP Port
+Host: localhost
+Port: 80
+Reachable: NO
+Status: CRITICAL
+
+Overall Health
+Status: CRITICAL
+```
+
+## Tests
+
+Run the test suite with:
+
+```bash
+python -m pytest -v
+```
+
+The health engine currently has automated unit tests covering Overall Health status calculation.
+
+## Continuous Integration
+
+GitHub Actions automatically:
+
+1. checks out the repository
+2. sets up Python 3.12
+3. installs dependencies
+4. runs pytest
+
+CI runs on `push` and `pull_request`.
+
+## Project Structure
+
+```text
+.github/
+  workflows/
+    ci.yml
+config.yaml
+main.py
+requirements.txt
+infrapulse/
+  config.py
+  health.py
+  checks/
+tests/
+  test_health.py
+```
+
+## Technologies
+
+- Python
+- psutil
+- Requests
+- PyYAML
+- pytest
+- GitHub Actions
+
+## Project Purpose
+
+InfraPulse was created as a practical infrastructure/support engineering portfolio project focused on monitoring, troubleshooting, automation, and CI concepts.
