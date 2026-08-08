@@ -1,6 +1,7 @@
 from infrapulse.checks.cpu import check_cpu
 from infrapulse.checks.disk import check_disk
 from infrapulse.checks.memory import check_memory
+from infrapulse.checks.process import check_process
 from infrapulse.checks.uptime import check_uptime
 
 
@@ -14,6 +15,7 @@ print()
 cpu_result = check_cpu()
 disk_result = check_disk()
 memory_result = check_memory()
+process_result = check_process("explorer.exe")
 uptime_result = check_uptime()
 
 print("CPU")
@@ -40,3 +42,9 @@ print(
     f"{uptime_result['hours']} hours, "
     f"{uptime_result['minutes']} minutes"
 )
+print()
+
+print("Process")
+print(f"Name: {process_result['value']}")
+print(f"Running: {'YES' if process_result['running'] else 'NO'}")
+print(f"Status: {process_result['status'].upper()}")
