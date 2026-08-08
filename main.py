@@ -1,3 +1,5 @@
+import sys
+
 from infrapulse.checks.cpu import check_cpu
 from infrapulse.checks.disk import check_disk
 from infrapulse.checks.http import check_http
@@ -83,3 +85,11 @@ print()
 
 print("Overall Health")
 print(f"Status: {overall_status.upper()}")
+
+exit_codes = {
+    "healthy": 0,
+    "warning": 1,
+    "critical": 2,
+}
+
+sys.exit(exit_codes[overall_status])
