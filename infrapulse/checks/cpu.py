@@ -12,7 +12,8 @@ def check_cpu():
         status = "critical"
 
     return {
-        "metric": "cpu_usage",
-        "usage_percent": usage_percent,
+        "metric": "cpu",
+        "value": usage_percent,
+        "unit": "%",
         "status": status,
     }

@@ -13,10 +13,11 @@ def check_disk():
         status = "critical"
 
     return {
-        "metric": "disk_usage",
-        "usage_percent": usage_percent,
-        "total_space": disk_usage.total,
-        "used_space": disk_usage.used,
-        "free_space": disk_usage.free,
+        "metric": "disk",
+        "value": usage_percent,
+        "unit": "%",
+        "total_bytes": disk_usage.total,
+        "used_bytes": disk_usage.used,
+        "free_bytes": disk_usage.free,
         "status": status,
     }

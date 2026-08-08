@@ -12,7 +12,8 @@ def check_memory():
         status = "critical"
 
     return {
-        "metric": "memory_usage",
-        "usage_percent": usage_percent,
+        "metric": "memory",
+        "value": usage_percent,
+        "unit": "%",
         "status": status,
     }
