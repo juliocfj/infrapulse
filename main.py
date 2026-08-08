@@ -7,6 +7,7 @@ from infrapulse.checks.memory import check_memory
 from infrapulse.checks.port import check_port
 from infrapulse.checks.process import check_process
 from infrapulse.checks.uptime import check_uptime
+from infrapulse.config import load_config
 from infrapulse.health import calculate_overall_status
 
 
@@ -17,12 +18,18 @@ def bytes_to_gb(value):
 print("InfraPulse - Infrastructure Health Monitor")
 print()
 
+config = load_config()
+
 cpu_result = check_cpu()
 disk_result = check_disk()
-http_result = check_http("https://httpbin.org/status/200")
+http_result = check_http(config["http"]["url"], config["http"]["timeout"])
 memory_result = check_memory()
-port_result = check_port("localhost", 80)
-process_result = check_process("explorer.exe")
+port_result = check_port(
+    config["tcp"]["host"],
+    config["tcp"]["port"],
+    config["tcp"]["timeout"],
+)
+process_result = check_process(config["process"]["name"])
 uptime_result = check_uptime()
 
 overall_status = calculate_overall_status(

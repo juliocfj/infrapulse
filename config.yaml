@@ -1,0 +1,11 @@
+process:
+  name: explorer.exe
+
+tcp:
+  host: localhost
+  port: 80
+  timeout: 2
+
+http:
+  url: https://httpbin.org/status/200
+  timeout: 3
