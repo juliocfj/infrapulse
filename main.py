@@ -5,6 +5,7 @@ from infrapulse.checks.memory import check_memory
 from infrapulse.checks.port import check_port
 from infrapulse.checks.process import check_process
 from infrapulse.checks.uptime import check_uptime
+from infrapulse.health import calculate_overall_status
 
 
 def bytes_to_gb(value):
@@ -21,6 +22,17 @@ memory_result = check_memory()
 port_result = check_port("localhost", 80)
 process_result = check_process("explorer.exe")
 uptime_result = check_uptime()
+
+overall_status = calculate_overall_status(
+    [
+        cpu_result,
+        memory_result,
+        disk_result,
+        process_result,
+        port_result,
+        http_result,
+    ]
+)
 
 print("CPU")
 print(f"Usage: {cpu_result['value']}{cpu_result['unit']}")
@@ -67,3 +79,7 @@ print(f"Reachable: {'YES' if http_result['reachable'] else 'NO'}")
 print(f"Status Code: {http_result['value']}")
 print(f"Response Time: {http_result['response_time_ms']} ms")
 print(f"Status: {http_result['status'].upper()}")
+print()
+
+print("Overall Health")
+print(f"Status: {overall_status.upper()}")
