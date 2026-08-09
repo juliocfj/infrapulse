@@ -1,5 +1,6 @@
 psutil
 pytest
+pytest-cov
 PyYAML
 requests
 ruff
