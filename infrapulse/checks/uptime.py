@@ -1,11 +1,11 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 import psutil
 
 
 def check_uptime():
-    boot_time = datetime.fromtimestamp(psutil.boot_time())
-    uptime = datetime.now() - boot_time
+    boot_time = datetime.fromtimestamp(psutil.boot_time(), tz=timezone.utc)
+    uptime = datetime.now(timezone.utc) - boot_time
 
     total_seconds = int(uptime.total_seconds())
     days = uptime.days
