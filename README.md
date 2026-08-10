@@ -114,6 +114,20 @@ Overall Health
 Status: CRITICAL
 ```
 
+## Docker
+
+InfraPulse can run natively on Windows and Linux. Native execution is recommended when the goal is to monitor the host itself.
+
+The Docker image uses a Linux-based Python 3.12 container. The same Linux container image can be run from Docker on Windows or Linux.
+
+When running in Docker, system and process checks observe the container environment by default. A Windows-specific process such as `explorer.exe` will not exist inside the Linux container. Users may need a Docker-specific `config.yaml` with Linux/container-appropriate targets.
+
+Build the Docker image:
+
+```bash
+docker build -t infrapulse .
+```
+
 ## Tests
 
 Run the test suite with:
