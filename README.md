@@ -116,17 +116,45 @@ Status: CRITICAL
 
 ## Docker
 
-InfraPulse can run natively on Windows and Linux. Native execution is recommended when the goal is to monitor the host itself.
+InfraPulse can run natively on Windows and Linux:
+
+```bash
+python main.py
+```
+
+Native execution uses `config.yaml` by default and is recommended when InfraPulse should monitor the actual Windows or Linux host.
+
+You can also run InfraPulse with a custom native configuration file:
+
+```bash
+python main.py --config another-config.yaml
+```
 
 The Docker image uses a Linux-based Python 3.12 container. The same Linux container image can be run from Docker on Windows or Linux.
 
-When running in Docker, system and process checks observe the container environment by default. A Windows-specific process such as `explorer.exe` will not exist inside the Linux container. Users may need a Docker-specific `config.yaml` with Linux/container-appropriate targets.
+When running in Docker, system and process checks observe the container environment by default. Docker execution does not automatically monitor the Windows or Linux host. A Windows-specific process such as `explorer.exe` will not exist inside the Linux container.
+
+The Docker image uses `config.docker.yaml` by default. This file is intentionally container-oriented and can be adjusted for Linux/container-appropriate targets. For example, an HTTP target such as `http://localhost:80` checks whether something is listening inside the container; it may report `CRITICAL` if no service is running there.
 
 Build the Docker image:
 
 ```bash
 docker build -t infrapulse .
 ```
+
+Run the container:
+
+```bash
+docker run --rm infrapulse
+```
+
+InfraPulse exit codes are preserved when the container exits:
+
+- `0` = healthy
+- `1` = warning
+- `2` = critical
+
+This means `docker run` may exit with code `1` or `2` even when Docker itself worked correctly.
 
 ## Tests
 

@@ -1,0 +1,11 @@
+process:
+  name: python
+
+tcp:
+  host: localhost
+  port: 80
+  timeout: 2
+
+http:
+  url: http://localhost:80
+  timeout: 3
