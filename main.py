@@ -37,38 +37,35 @@ def parse_args(args=None):
 def collect_health_report(config):
     cpu_result = check_cpu()
     disk_result = check_disk()
-    http_result = check_http(config["http"]["url"], config["http"]["timeout"])
     memory_result = check_memory()
-    port_result = check_port(
-        config["tcp"]["host"],
-        config["tcp"]["port"],
-        config["tcp"]["timeout"],
-    )
-    process_result = check_process(config["process"]["name"])
     uptime_result = check_uptime()
 
-    overall_status = calculate_overall_status(
-        [
-            cpu_result,
-            memory_result,
-            disk_result,
-            process_result,
-            port_result,
-            http_result,
-        ]
-    )
+    process_results = [
+        check_process(process["name"]) for process in config["processes"]
+    ]
+    port_results = [
+        check_port(target["host"], target["port"], target["timeout"])
+        for target in config["tcp"]
+    ]
+    http_results = [
+        check_http(target["url"], target["timeout"]) for target in config["http"]
+    ]
+
+    checks = [
+        cpu_result,
+        memory_result,
+        disk_result,
+        uptime_result,
+        *process_results,
+        *port_results,
+        *http_results,
+    ]
+
+    overall_status = calculate_overall_status(checks)
 
     return {
         "overall_status": overall_status,
-        "checks": [
-            cpu_result,
-            memory_result,
-            disk_result,
-            uptime_result,
-            process_result,
-            port_result,
-            http_result,
-        ],
+        "checks": checks,
     }
 
 
@@ -77,64 +74,59 @@ def render_json_report(report):
 
 
 def print_human_report(report):
-    cpu_result = report["checks"][0]
-    memory_result = report["checks"][1]
-    disk_result = report["checks"][2]
-    uptime_result = report["checks"][3]
-    process_result = report["checks"][4]
-    port_result = report["checks"][5]
-    http_result = report["checks"][6]
     overall_status = report["overall_status"]
 
     print("InfraPulse - Infrastructure Health Monitor")
     print()
 
-    print("CPU")
-    print(f"Usage: {cpu_result['value']}{cpu_result['unit']}")
-    print(f"Status: {cpu_result['status'].upper()}")
-    print()
-
-    print("Memory")
-    print(f"Usage: {memory_result['value']}{memory_result['unit']}")
-    print(f"Status: {memory_result['status'].upper()}")
-    print()
-
-    print("Disk")
-    print(f"Usage: {disk_result['value']}{disk_result['unit']}")
-    print(f"Total: {bytes_to_gb(disk_result['total_bytes']):.1f} GB")
-    print(f"Used: {bytes_to_gb(disk_result['used_bytes']):.1f} GB")
-    print(f"Free: {bytes_to_gb(disk_result['free_bytes']):.1f} GB")
-    print(f"Status: {disk_result['status'].upper()}")
-    print()
-
-    print("Uptime")
-    print(
-        f"{uptime_result['days']} days, "
-        f"{uptime_result['hours']} hours, "
-        f"{uptime_result['minutes']} minutes"
-    )
-    print()
-
-    print("Process")
-    print(f"Name: {process_result['value']}")
-    print(f"Running: {'YES' if process_result['running'] else 'NO'}")
-    print(f"Status: {process_result['status'].upper()}")
-    print()
-
-    print("TCP Port")
-    print(f"Host: {port_result['host']}")
-    print(f"Port: {port_result['value']}")
-    print(f"Reachable: {'YES' if port_result['reachable'] else 'NO'}")
-    print(f"Status: {port_result['status'].upper()}")
-    print()
-
-    print("HTTP Endpoint")
-    print(f"URL: {http_result['url']}")
-    print(f"Reachable: {'YES' if http_result['reachable'] else 'NO'}")
-    print(f"Status Code: {http_result['value']}")
-    print(f"Response Time: {http_result['response_time_ms']} ms")
-    print(f"Status: {http_result['status'].upper()}")
-    print()
+    for result in report["checks"]:
+        if result["metric"] == "cpu":
+            print("CPU")
+            print(f"Usage: {result['value']}{result['unit']}")
+            print(f"Status: {result['status'].upper()}")
+            print()
+        elif result["metric"] == "memory":
+            print("Memory")
+            print(f"Usage: {result['value']}{result['unit']}")
+            print(f"Status: {result['status'].upper()}")
+            print()
+        elif result["metric"] == "disk":
+            print("Disk")
+            print(f"Usage: {result['value']}{result['unit']}")
+            print(f"Total: {bytes_to_gb(result['total_bytes']):.1f} GB")
+            print(f"Used: {bytes_to_gb(result['used_bytes']):.1f} GB")
+            print(f"Free: {bytes_to_gb(result['free_bytes']):.1f} GB")
+            print(f"Status: {result['status'].upper()}")
+            print()
+        elif result["metric"] == "uptime":
+            print("Uptime")
+            print(
+                f"{result['days']} days, "
+                f"{result['hours']} hours, "
+                f"{result['minutes']} minutes"
+            )
+            print()
+        elif result["metric"] == "process":
+            print("Process")
+            print(f"Name: {result['value']}")
+            print(f"Running: {'YES' if result['running'] else 'NO'}")
+            print(f"Status: {result['status'].upper()}")
+            print()
+        elif result["metric"] == "tcp_port":
+            print("TCP Port")
+            print(f"Host: {result['host']}")
+            print(f"Port: {result['value']}")
+            print(f"Reachable: {'YES' if result['reachable'] else 'NO'}")
+            print(f"Status: {result['status'].upper()}")
+            print()
+        elif result["metric"] == "http":
+            print("HTTP Endpoint")
+            print(f"URL: {result['url']}")
+            print(f"Reachable: {'YES' if result['reachable'] else 'NO'}")
+            print(f"Status Code: {result['value']}")
+            print(f"Response Time: {result['response_time_ms']} ms")
+            print(f"Status: {result['status'].upper()}")
+            print()
 
     print("Overall Health")
     print(f"Status: {overall_status.upper()}")

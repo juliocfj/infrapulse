@@ -67,20 +67,20 @@ python -m pip install -r requirements.txt
 
 ## Configuration
 
-InfraPulse reads monitoring targets from `config.yaml`.
+InfraPulse reads monitoring targets from `config.yaml`. Users can monitor more than one process, TCP endpoint, and HTTP endpoint by adding more items to each list.
 
 ```yaml
-process:
-  name: explorer.exe
+processes:
+  - name: explorer.exe
 
 tcp:
-  host: localhost
-  port: 80
-  timeout: 2
+  - host: localhost
+    port: 80
+    timeout: 2
 
 http:
-  url: https://httpbin.org/status/200
-  timeout: 3
+  - url: https://httpbin.org/status/200
+    timeout: 3
 ```
 
 These values can be changed without modifying Python code. `explorer.exe` is only an example for Windows; Linux users should configure an appropriate process such as `nginx`.
@@ -174,7 +174,7 @@ The Docker image uses a Linux-based Python 3.12 container. The same Linux contai
 
 When running in Docker, system and process checks observe the container environment by default. Docker execution does not automatically monitor the Windows or Linux host. A Windows-specific process such as `explorer.exe` will not exist inside the Linux container.
 
-The Docker image uses `config.docker.yaml` by default. This file is intentionally container-oriented and can be adjusted for Linux/container-appropriate targets. For example, an HTTP target such as `http://localhost:80` checks whether something is listening inside the container; it may report `CRITICAL` if no service is running there.
+The Docker image uses `config.docker.yaml` by default. This file is intentionally container-oriented and can be adjusted for Linux/container-appropriate targets. HTTP, TCP, and process targets may report `CRITICAL` if the configured target is unavailable from inside the container.
 
 Build the Docker image:
 

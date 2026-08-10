@@ -7,15 +7,15 @@ def test_load_config_returns_valid_yaml_dictionary(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text(
         """
-process:
-  name: explorer.exe
+processes:
+  - name: explorer.exe
 tcp:
-  host: localhost
-  port: 80
-  timeout: 2
+  - host: localhost
+    port: 80
+    timeout: 2
 http:
-  url: https://httpbin.org/status/200
-  timeout: 3
+  - url: https://httpbin.org/status/200
+    timeout: 3
 """,
         encoding="utf-8",
     )
@@ -23,9 +23,9 @@ http:
     result = load_config(config_file)
 
     assert result == {
-        "process": {"name": "explorer.exe"},
-        "tcp": {"host": "localhost", "port": 80, "timeout": 2},
-        "http": {"url": "https://httpbin.org/status/200", "timeout": 3},
+        "processes": [{"name": "explorer.exe"}],
+        "tcp": [{"host": "localhost", "port": 80, "timeout": 2}],
+        "http": [{"url": "https://httpbin.org/status/200", "timeout": 3}],
     }
 
 
