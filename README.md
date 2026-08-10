@@ -114,6 +114,46 @@ Overall Health
 Status: CRITICAL
 ```
 
+## JSON Output
+
+InfraPulse can also return machine-readable JSON output:
+
+```bash
+python main.py --json
+```
+
+Use JSON output with a specific configuration file:
+
+```bash
+python main.py --config config.yaml --json
+```
+
+JSON mode is useful for scripts, automation, CI/CD pipelines, and integrations.
+
+Example JSON output:
+
+```json
+{
+  "overall_status": "critical",
+  "checks": [
+    {
+      "metric": "tcp_port",
+      "value": 80,
+      "unit": "port",
+      "status": "critical",
+      "host": "localhost",
+      "reachable": false
+    }
+  ]
+}
+```
+
+Exit codes remain the same in JSON mode:
+
+- `0` = healthy
+- `1` = warning
+- `2` = critical
+
 ## Docker
 
 InfraPulse can run natively on Windows and Linux:

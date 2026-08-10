@@ -1,4 +1,5 @@
 import argparse
+import json
 import sys
 
 from infrapulse.checks.cpu import check_cpu
@@ -25,16 +26,15 @@ def parse_args(args=None):
         default="config.yaml",
         help="Path to the YAML configuration file",
     )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output the health report as JSON",
+    )
     return parser.parse_args(args)
 
 
-def main(args=None):
-    parsed_args = parse_args(args)
-    config = load_config(parsed_args.config)
-
-    print("InfraPulse - Infrastructure Health Monitor")
-    print()
-
+def collect_health_report(config):
     cpu_result = check_cpu()
     disk_result = check_disk()
     http_result = check_http(config["http"]["url"], config["http"]["timeout"])
@@ -57,6 +57,37 @@ def main(args=None):
             http_result,
         ]
     )
+
+    return {
+        "overall_status": overall_status,
+        "checks": [
+            cpu_result,
+            memory_result,
+            disk_result,
+            uptime_result,
+            process_result,
+            port_result,
+            http_result,
+        ],
+    }
+
+
+def render_json_report(report):
+    return json.dumps(report, indent=2)
+
+
+def print_human_report(report):
+    cpu_result = report["checks"][0]
+    memory_result = report["checks"][1]
+    disk_result = report["checks"][2]
+    uptime_result = report["checks"][3]
+    process_result = report["checks"][4]
+    port_result = report["checks"][5]
+    http_result = report["checks"][6]
+    overall_status = report["overall_status"]
+
+    print("InfraPulse - Infrastructure Health Monitor")
+    print()
 
     print("CPU")
     print(f"Usage: {cpu_result['value']}{cpu_result['unit']}")
@@ -108,13 +139,24 @@ def main(args=None):
     print("Overall Health")
     print(f"Status: {overall_status.upper()}")
 
+
+def main(args=None):
+    parsed_args = parse_args(args)
+    config = load_config(parsed_args.config)
+    report = collect_health_report(config)
+
+    if parsed_args.json:
+        print(render_json_report(report))
+    else:
+        print_human_report(report)
+
     exit_codes = {
         "healthy": 0,
         "warning": 1,
         "critical": 2,
     }
 
-    return exit_codes[overall_status]
+    return exit_codes[report["overall_status"]]
 
 
 if __name__ == "__main__":
