@@ -73,6 +73,16 @@ def render_json_report(report):
     return json.dumps(report, indent=2)
 
 
+def render_json_error(message):
+    return json.dumps(
+        {
+            "error": "configuration_error",
+            "message": message,
+        },
+        indent=2,
+    )
+
+
 def print_human_report(report):
     overall_status = report["overall_status"]
 
@@ -134,7 +144,16 @@ def print_human_report(report):
 
 def main(args=None):
     parsed_args = parse_args(args)
-    config = load_config(parsed_args.config)
+
+    try:
+        config = load_config(parsed_args.config)
+    except (FileNotFoundError, ValueError) as error:
+        if parsed_args.json:
+            print(render_json_error(str(error)))
+        else:
+            print(error)
+        return 3
+
     report = collect_health_report(config)
 
     if parsed_args.json:

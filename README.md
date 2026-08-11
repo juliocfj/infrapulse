@@ -38,6 +38,7 @@ InfraPulse exits with a code based on the Overall Health:
 - `0` = healthy
 - `1` = warning
 - `2` = critical
+- `3` = configuration error
 
 Exit codes make the tool useful for scripts, CI/CD pipelines, scheduled tasks, and automation systems that need to detect health without parsing the full CLI output.
 
@@ -67,7 +68,7 @@ python -m pip install -r requirements.txt
 
 ## Configuration
 
-InfraPulse reads monitoring targets from `config.yaml`. Users can monitor more than one process, TCP endpoint, and HTTP endpoint by adding more items to each list.
+InfraPulse reads monitoring targets from `config.yaml`. Configuration is validated before health checks run. Users can monitor more than one process, TCP endpoint, and HTTP endpoint by adding more items to each list.
 
 ```yaml
 processes:
@@ -84,6 +85,12 @@ http:
 ```
 
 These values can be changed without modifying Python code. `explorer.exe` is only an example for Windows; Linux users should configure an appropriate process such as `nginx`.
+
+Invalid configuration returns a clear error and exits with code `3`:
+
+```text
+Configuration error: tcp[0].port must be an integer
+```
 
 ## Usage
 
@@ -153,6 +160,7 @@ Exit codes remain the same in JSON mode:
 - `0` = healthy
 - `1` = warning
 - `2` = critical
+- `3` = configuration error
 
 ## Docker
 

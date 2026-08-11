@@ -1,7 +1,7 @@
 import json
 from unittest.mock import call, patch
 
-from main import collect_health_report, parse_args, render_json_report
+from main import collect_health_report, main, parse_args, render_json_report
 
 
 def test_parse_args_uses_default_config():
@@ -184,3 +184,38 @@ def test_collect_health_report_runs_multiple_targets():
         *http_results,
     ]
     assert json.loads(render_json_report(report)) == report
+
+
+def test_main_human_config_error_returns_exit_code_3(capsys):
+    message = "Configuration error: tcp[0].port must be an integer"
+
+    with (
+        patch("main.load_config", side_effect=ValueError(message)),
+        patch("main.collect_health_report") as collect_health_report_mock,
+    ):
+        exit_code = main(["--config", "invalid.yaml"])
+
+    output = capsys.readouterr().out
+
+    assert output == f"{message}\n"
+    assert exit_code == 3
+    collect_health_report_mock.assert_not_called()
+
+
+def test_main_json_config_error_returns_valid_json_and_exit_code_3(capsys):
+    message = "Configuration error: tcp[0].port must be an integer"
+
+    with (
+        patch("main.load_config", side_effect=ValueError(message)),
+        patch("main.collect_health_report") as collect_health_report_mock,
+    ):
+        exit_code = main(["--config", "invalid.yaml", "--json"])
+
+    output = capsys.readouterr().out
+
+    assert json.loads(output) == {
+        "error": "configuration_error",
+        "message": message,
+    }
+    assert exit_code == 3
+    collect_health_report_mock.assert_not_called()
