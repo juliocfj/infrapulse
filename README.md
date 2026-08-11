@@ -105,6 +105,14 @@ http:
 
 These values can be changed without modifying Python code. `explorer.exe` is only an example for Windows; Linux users should configure an appropriate process such as `nginx`.
 
+For screenshots and portfolio demonstrations, `config.demo.yaml` provides optional demo targets:
+
+```bash
+python main.py --config config.demo.yaml
+```
+
+The demo configuration does not alter InfraPulse behavior; it only defines different monitoring targets.
+
 Invalid configuration returns a clear error and exits with code `3`:
 
 ```text
@@ -186,6 +194,24 @@ Exit codes remain the same in JSON mode:
 - `1` = warning
 - `2` = critical
 - `3` = configuration error
+
+## Graphical Interface
+
+A graphical desktop interface is currently under development:
+
+```bash
+python -m gui.app
+```
+
+Phase 1 is a GUI preview/skeleton only. The existing CLI remains the stable v1.0.0 interface.
+
+Phase 2 connects real CPU, memory, disk, and uptime checks to the GUI. Process, TCP, HTTP, and Overall Health integration are still under development.
+
+Phase 3 adds interactive Process, TCP, and HTTP checks. Users can enter targets directly in the GUI. Overall Health integration is still under development.
+
+Phase 4 adds real Overall Health calculation using the same InfraPulse health engine as the CLI. Any completed `CRITICAL` check makes Overall Health `CRITICAL`; otherwise any completed `WARNING` check makes it `WARNING`; otherwise completed checks are `HEALTHY`. Uptime is informational and does not affect Overall Health.
+
+The GUI is still under development and is not yet the stable interface.
 
 ## Docker
 

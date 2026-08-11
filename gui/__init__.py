@@ -1,0 +1,1 @@
+"""InfraPulse graphical interface package."""
