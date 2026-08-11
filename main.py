@@ -11,6 +11,7 @@ from infrapulse.checks.process import check_process
 from infrapulse.checks.uptime import check_uptime
 from infrapulse.config import load_config
 from infrapulse.health import calculate_overall_status
+from infrapulse.version import __version__
 
 
 def bytes_to_gb(value):
@@ -30,6 +31,11 @@ def parse_args(args=None):
         "--json",
         action="store_true",
         help="Output the health report as JSON",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"InfraPulse {__version__}",
     )
     return parser.parse_args(args)
 

@@ -2,9 +2,23 @@
 
 [![CI](https://github.com/juliocfj/infrapulse/actions/workflows/ci.yml/badge.svg)](https://github.com/juliocfj/infrapulse/actions/workflows/ci.yml)
 
+InfraPulse v1.0.0
+
 InfraPulse is a lightweight infrastructure health monitoring and troubleshooting tool built with Python. It provides simple command-line checks for common system and service health signals.
 
+v1.0.0 is the first stable portfolio release of InfraPulse.
+
 Repository: [juliocfj/infrapulse](https://github.com/juliocfj/infrapulse)
+
+## Quick Start
+
+```bash
+git clone https://github.com/juliocfj/infrapulse.git
+cd infrapulse
+python -m venv .venv
+python -m pip install -r requirements.txt
+python main.py
+```
 
 ## Features
 
@@ -15,10 +29,15 @@ Repository: [juliocfj/infrapulse](https://github.com/juliocfj/infrapulse)
 - Process monitoring
 - TCP port reachability
 - HTTP endpoint monitoring
+- Multiple process, TCP, and HTTP targets
 - Overall health status
 - Health-based exit codes
 - YAML configuration
+- Configuration validation
+- JSON output
+- Docker support
 - Automated unit tests
+- Ruff linting
 - GitHub Actions CI
 
 ## Health Status
@@ -96,6 +115,12 @@ Configuration error: tcp[0].port must be an integer
 
 ```bash
 python main.py
+```
+
+Check the installed project version:
+
+```bash
+python main.py --version
 ```
 
 Example output:
@@ -201,6 +226,7 @@ InfraPulse exit codes are preserved when the container exits:
 - `0` = healthy
 - `1` = warning
 - `2` = critical
+- `3` = configuration error
 
 This means `docker run` may exit with code `1` or `2` even when Docker itself worked correctly.
 
@@ -212,7 +238,7 @@ Run the test suite with:
 python -m pytest -v
 ```
 
-The health engine currently has automated unit tests covering Overall Health status calculation.
+The test suite covers health checks, configuration validation, CLI behavior, JSON output, and Overall Health status calculation.
 
 ## Continuous Integration
 
@@ -221,7 +247,9 @@ GitHub Actions automatically:
 1. checks out the repository
 2. sets up Python 3.12
 3. installs dependencies
-4. runs pytest
+4. runs Ruff
+5. runs pytest with coverage
+6. validates the Docker image build
 
 CI runs on `push` and `pull_request`.
 
@@ -231,12 +259,17 @@ CI runs on `push` and `pull_request`.
 .github/
   workflows/
     ci.yml
+CHANGELOG.md
+Dockerfile
+RELEASE_CHECKLIST.md
+config.docker.yaml
 config.yaml
 main.py
 requirements.txt
 infrapulse/
   config.py
   health.py
+  version.py
   checks/
 tests/
   test_health.py

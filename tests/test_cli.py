@@ -1,6 +1,8 @@
 import json
 from unittest.mock import call, patch
 
+import pytest
+
 from main import collect_health_report, main, parse_args, render_json_report
 
 
@@ -218,4 +220,20 @@ def test_main_json_config_error_returns_valid_json_and_exit_code_3(capsys):
         "message": message,
     }
     assert exit_code == 3
+    collect_health_report_mock.assert_not_called()
+
+
+def test_main_version_prints_version_exits_zero_and_skips_checks(capsys):
+    with (
+        patch("main.load_config") as load_config_mock,
+        patch("main.collect_health_report") as collect_health_report_mock,
+        pytest.raises(SystemExit) as exit_error,
+    ):
+        main(["--version"])
+
+    output = capsys.readouterr().out
+
+    assert output == "InfraPulse 1.0.0\n"
+    assert exit_error.value.code == 0
+    load_config_mock.assert_not_called()
     collect_health_report_mock.assert_not_called()
