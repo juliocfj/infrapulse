@@ -1,5 +1,5 @@
 import tkinter as tk
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from tkinter import filedialog, ttk
 
 import yaml
@@ -920,6 +920,9 @@ class InfraPulseGUI:
 
         self._apply_configuration(config, path)
 
+    def _get_config_filename(self, path):
+        return PureWindowsPath(path).name
+
     def _apply_configuration(self, config, path):
         processes = config.get("processes", [])
         tcp_targets = config.get("tcp", [])
@@ -936,7 +939,8 @@ class InfraPulseGUI:
             self.service_inputs["http_timeout"].set(str(http_targets[0]["timeout"]))
 
         self.current_config_path = path
-        self.current_config_display.set(f"Configuration: {Path(path).name}")
+        filename = self._get_config_filename(path)
+        self.current_config_display.set(f"Configuration: {filename}")
         self._reset_service_results()
 
         if any(len(targets) > 1 for targets in [processes, tcp_targets, http_targets]):
@@ -945,7 +949,7 @@ class InfraPulseGUI:
                 "from each target group."
             )
         else:
-            self.status_message.set(f"Configuration loaded: {Path(path).name}")
+            self.status_message.set(f"Configuration loaded: {filename}")
 
     def _save_configuration(self):
         path = filedialog.asksaveasfilename(
@@ -971,8 +975,9 @@ class InfraPulseGUI:
             return
 
         self.current_config_path = path
-        self.current_config_display.set(f"Configuration: {Path(path).name}")
-        self.status_message.set(f"Configuration saved: {Path(path).name}")
+        filename = self._get_config_filename(path)
+        self.current_config_display.set(f"Configuration: {filename}")
+        self.status_message.set(f"Configuration saved: {filename}")
 
     def _build_configuration_from_inputs(self):
         process_name = self._get_required_text(
