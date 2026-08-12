@@ -1,0 +1,11 @@
+processes:
+  - name: explorer.exe
+
+tcp:
+  - host: github.com
+    port: 443
+    timeout: 3
+
+http:
+  - url: https://github.com
+    timeout: 5

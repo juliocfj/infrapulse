@@ -1,7 +1,11 @@
 import importlib
 from unittest.mock import patch
 
+import pytest
+import yaml
+
 import gui.app as gui_app
+from infrapulse.config import load_config, validate_config
 
 
 def test_importing_gui_app_does_not_launch_application():
@@ -30,9 +34,35 @@ class FakeLabel:
         self.options.update(kwargs)
 
 
+class FakeRoot:
+    def __init__(self):
+        self.options = {}
+
+    def configure(self, **kwargs):
+        self.options.update(kwargs)
+
+
+class FakeStyle:
+    def __init__(self):
+        self.configurations = []
+        self.maps = []
+
+    def configure(self, *args, **kwargs):
+        self.configurations.append((args, kwargs))
+
+    def map(self, *args, **kwargs):
+        self.maps.append((args, kwargs))
+
+
 def make_gui():
     gui = gui_app.InfraPulseGUI.__new__(gui_app.InfraPulseGUI)
+    gui.root = FakeRoot()
+    gui.theme_name = FakeVar("Dark")
+    gui.theme = gui_app.THEMES["dark"]
+    gui.style = FakeStyle()
     gui.status_message = FakeVar()
+    gui.current_config_path = None
+    gui.current_config_display = FakeVar("Configuration: Manual")
     gui.overall_status = FakeVar("NOT CHECKED")
     gui.overall_description = FakeVar(
         "Run one or more checks to calculate overall health."
@@ -59,6 +89,33 @@ def make_gui():
         "http": make_service_card(include_extra=True),
     }
     return gui
+
+
+def test_theme_defaults_to_dark_when_gui_initializes():
+    gui = make_gui()
+
+    assert gui.theme_name.get() == "Dark"
+    assert gui.theme == gui_app.THEMES["dark"]
+
+
+def test_theme_switch_dark_to_light_updates_active_theme():
+    gui = make_gui()
+
+    gui.theme_name.set("Light")
+    gui._apply_theme()
+
+    assert gui.theme == gui_app.THEMES["light"]
+
+
+def test_theme_switch_light_to_dark_updates_active_theme():
+    gui = make_gui()
+    gui.theme_name.set("Light")
+    gui._apply_theme()
+
+    gui.theme_name.set("Dark")
+    gui._apply_theme()
+
+    assert gui.theme == gui_app.THEMES["dark"]
 
 
 def make_card():
@@ -720,3 +777,539 @@ def test_gui_reuses_calculate_overall_status():
 
     engine.assert_called_once_with([gui.latest_results["cpu"]])
     assert gui.overall_status.get() == "WARNING"
+
+
+def make_config(
+    process_name="explorer.exe",
+    tcp_host="github.com",
+    tcp_port=443,
+    tcp_timeout=3,
+    http_url="https://github.com",
+    http_timeout=5,
+):
+    return {
+        "processes": [{"name": process_name}],
+        "tcp": [{"host": tcp_host, "port": tcp_port, "timeout": tcp_timeout}],
+        "http": [{"url": http_url, "timeout": http_timeout}],
+    }
+
+
+def test_cancelled_configuration_dialog_changes_nothing():
+    gui = make_gui()
+    gui.service_inputs["process_name"].set("python.exe")
+
+    with (
+        patch("gui.app.filedialog.askopenfilename", return_value=""),
+        patch("gui.app.load_config") as load_config,
+    ):
+        gui._load_configuration()
+
+    load_config.assert_not_called()
+    assert gui.service_inputs["process_name"].get() == "python.exe"
+    assert gui.current_config_display.get() == "Configuration: Manual"
+    assert gui.status_message.get() == ""
+
+
+def test_selected_configuration_path_is_passed_to_loader():
+    gui = make_gui()
+    config = make_config()
+
+    with (
+        patch(
+            "gui.app.filedialog.askopenfilename",
+            return_value=r"C:\configs\config.yaml",
+        ),
+        patch("gui.app.load_config", return_value=config) as load_config,
+    ):
+        gui._load_configuration()
+
+    load_config.assert_called_once_with(r"C:\configs\config.yaml")
+
+
+def test_valid_configuration_populates_process_input():
+    gui = make_gui()
+
+    gui._apply_configuration(make_config(process_name="python.exe"), "config.yaml")
+
+    assert gui.service_inputs["process_name"].get() == "python.exe"
+
+
+def test_valid_configuration_populates_tcp_inputs():
+    gui = make_gui()
+
+    gui._apply_configuration(
+        make_config(tcp_host="localhost", tcp_port=80, tcp_timeout=2),
+        "config.yaml",
+    )
+
+    assert gui.service_inputs["tcp_host"].get() == "localhost"
+    assert gui.service_inputs["tcp_port"].get() == "80"
+    assert gui.service_inputs["tcp_timeout"].get() == "2"
+
+
+def test_valid_configuration_populates_http_inputs():
+    gui = make_gui()
+
+    gui._apply_configuration(
+        make_config(http_url="https://example.com", http_timeout=4),
+        "config.yaml",
+    )
+
+    assert gui.service_inputs["http_url"].get() == "https://example.com"
+    assert gui.service_inputs["http_timeout"].get() == "4"
+
+
+def test_current_configuration_label_shows_only_filename():
+    gui = make_gui()
+
+    gui._apply_configuration(make_config(), r"C:\configs\config.demo.yaml")
+
+    assert gui.current_config_path == r"C:\configs\config.demo.yaml"
+    assert gui.current_config_display.get() == "Configuration: config.demo.yaml"
+
+
+def test_configuration_loading_does_not_automatically_execute_checks():
+    gui = make_gui()
+    config = make_config()
+
+    with (
+        patch("gui.app.filedialog.askopenfilename", return_value="config.yaml"),
+        patch("gui.app.load_config", return_value=config),
+        patch.object(gui, "_run_all_checks") as run_all,
+        patch.object(gui, "_run_process_check") as process,
+        patch.object(gui, "_run_tcp_check") as tcp,
+        patch.object(gui, "_run_http_check") as http,
+    ):
+        gui._load_configuration()
+
+    run_all.assert_not_called()
+    process.assert_not_called()
+    tcp.assert_not_called()
+    http.assert_not_called()
+
+
+def test_loading_configuration_removes_previous_service_results():
+    gui = make_gui()
+    gui._store_latest_result(
+        "process",
+        {
+            "metric": "process",
+            "value": "explorer.exe",
+            "unit": "state",
+            "status": "healthy",
+            "running": True,
+        },
+    )
+    gui._store_latest_result(
+        "tcp_port",
+        {
+            "metric": "tcp_port",
+            "value": 443,
+            "unit": "port",
+            "status": "healthy",
+            "host": "github.com",
+            "reachable": True,
+        },
+    )
+    gui._store_latest_result(
+        "http",
+        {
+            "metric": "http",
+            "value": 200,
+            "unit": "status_code",
+            "status": "healthy",
+            "url": "https://github.com",
+            "reachable": True,
+            "response_time_ms": 50,
+        },
+    )
+
+    gui._apply_configuration(make_config(), "config.yaml")
+
+    assert "process" not in gui.latest_results
+    assert "tcp_port" not in gui.latest_results
+    assert "http" not in gui.latest_results
+    assert gui.service_cards["process"]["target"].get() == "Target: --"
+    assert gui.service_cards["tcp"]["target"].get() == "Target: --"
+    assert gui.service_cards["http"]["target"].get() == "Target: --"
+    assert gui.service_cards["process"]["status"].get() == "Status: NOT CHECKED"
+    assert gui.service_cards["tcp"]["status"].get() == "Status: NOT CHECKED"
+    assert gui.service_cards["http"]["status"].get() == "Status: NOT CHECKED"
+
+
+def test_loading_configuration_keeps_system_results_and_recalculates_overall():
+    gui = make_gui()
+    gui._store_latest_result(
+        "cpu",
+        {"metric": "cpu", "value": 10, "unit": "%", "status": "healthy"},
+    )
+    gui._store_latest_result(
+        "memory",
+        {"metric": "memory", "value": 75, "unit": "%", "status": "warning"},
+    )
+    gui._store_latest_result(
+        "process",
+        {
+            "metric": "process",
+            "value": "explorer.exe",
+            "unit": "state",
+            "status": "critical",
+            "running": False,
+        },
+    )
+
+    gui._apply_configuration(make_config(), "config.yaml")
+
+    assert "cpu" in gui.latest_results
+    assert "memory" in gui.latest_results
+    assert "process" not in gui.latest_results
+    assert gui.overall_status.get() == "WARNING"
+
+
+def test_multiple_target_configuration_uses_first_target_and_shows_message():
+    gui = make_gui()
+    config = {
+        "processes": [{"name": "first.exe"}, {"name": "second.exe"}],
+        "tcp": [
+            {"host": "first.example.com", "port": 443, "timeout": 3},
+            {"host": "second.example.com", "port": 8443, "timeout": 4},
+        ],
+        "http": [
+            {"url": "https://first.example.com", "timeout": 5},
+            {"url": "https://second.example.com", "timeout": 6},
+        ],
+    }
+
+    gui._apply_configuration(config, "config.yaml")
+
+    assert gui.service_inputs["process_name"].get() == "first.exe"
+    assert gui.service_inputs["tcp_host"].get() == "first.example.com"
+    assert gui.service_inputs["tcp_port"].get() == "443"
+    assert gui.service_inputs["tcp_timeout"].get() == "3"
+    assert gui.service_inputs["http_url"].get() == "https://first.example.com"
+    assert gui.service_inputs["http_timeout"].get() == "5"
+    assert (
+        gui.status_message.get()
+        == "Configuration loaded. GUI currently displays the first target "
+        "from each target group."
+    )
+
+
+def test_file_not_found_configuration_error_is_handled_cleanly():
+    gui = make_gui()
+    gui.service_inputs["process_name"].set("python.exe")
+    gui._store_latest_result(
+        "process",
+        {
+            "metric": "process",
+            "value": "python.exe",
+            "unit": "state",
+            "status": "healthy",
+            "running": True,
+        },
+    )
+
+    with (
+        patch("gui.app.filedialog.askopenfilename", return_value="missing.yaml"),
+        patch(
+            "gui.app.load_config",
+            side_effect=FileNotFoundError("Configuration file not found: missing.yaml"),
+        ),
+    ):
+        gui._load_configuration()
+
+    assert gui.status_message.get() == "Configuration file not found: missing.yaml"
+    assert gui.service_inputs["process_name"].get() == "python.exe"
+    assert "process" in gui.latest_results
+
+
+def test_value_error_configuration_error_is_handled_cleanly():
+    gui = make_gui()
+    gui.service_inputs["tcp_port"].set("443")
+    gui._store_latest_result(
+        "tcp_port",
+        {
+            "metric": "tcp_port",
+            "value": 443,
+            "unit": "port",
+            "status": "healthy",
+            "host": "github.com",
+            "reachable": True,
+        },
+    )
+
+    with (
+        patch("gui.app.filedialog.askopenfilename", return_value="invalid.yaml"),
+        patch(
+            "gui.app.load_config",
+            side_effect=ValueError("Configuration error: tcp[0].port must be an integer"),
+        ),
+    ):
+        gui._load_configuration()
+
+    assert (
+        gui.status_message.get()
+        == "Configuration error: tcp[0].port must be an integer"
+    )
+    assert gui.service_inputs["tcp_port"].get() == "443"
+    assert "tcp_port" in gui.latest_results
+
+
+def test_cancelled_save_configuration_changes_nothing():
+    gui = make_gui()
+    gui.current_config_display.set("Configuration: Manual")
+
+    with (
+        patch("gui.app.filedialog.asksaveasfilename", return_value=""),
+        patch.object(gui, "_write_configuration") as write_configuration,
+    ):
+        gui._save_configuration()
+
+    write_configuration.assert_not_called()
+    assert gui.current_config_display.get() == "Configuration: Manual"
+    assert gui.status_message.get() == ""
+
+
+def test_save_configuration_opens_save_dialog():
+    gui = make_gui()
+
+    with (
+        patch("gui.app.filedialog.asksaveasfilename", return_value="saved.yaml")
+        as save_dialog,
+        patch.object(gui, "_write_configuration"),
+    ):
+        gui._save_configuration()
+
+    save_dialog.assert_called_once_with(
+        title="Save InfraPulse configuration",
+        defaultextension=".yaml",
+        initialfile="infrapulse-config.yaml",
+        filetypes=[
+            ("YAML files", "*.yaml *.yml"),
+            ("All files", "*.*"),
+        ],
+    )
+
+
+def test_build_configuration_includes_process_and_tcp_values():
+    gui = make_gui()
+    gui.service_inputs["process_name"].set("python.exe")
+    gui.service_inputs["tcp_host"].set("localhost")
+    gui.service_inputs["tcp_port"].set("80")
+    gui.service_inputs["tcp_timeout"].set("3")
+
+    config = gui._build_configuration_from_inputs()
+
+    assert config["processes"] == [{"name": "python.exe"}]
+    assert config["tcp"][0]["host"] == "localhost"
+    assert config["tcp"][0]["port"] == 80
+    assert isinstance(config["tcp"][0]["port"], int)
+    assert config["tcp"][0]["timeout"] == 3
+    assert isinstance(config["tcp"][0]["timeout"], int)
+
+
+def test_build_configuration_preserves_float_tcp_timeout():
+    gui = make_gui()
+    gui.service_inputs["tcp_timeout"].set("3.5")
+
+    config = gui._build_configuration_from_inputs()
+
+    assert config["tcp"][0]["timeout"] == 3.5
+    assert isinstance(config["tcp"][0]["timeout"], float)
+
+
+def test_build_configuration_includes_http_values():
+    gui = make_gui()
+    gui.service_inputs["http_url"].set("https://example.com/api/health")
+    gui.service_inputs["http_timeout"].set("5")
+
+    config = gui._build_configuration_from_inputs()
+
+    assert config["http"][0]["url"] == "https://example.com/api/health"
+    assert config["http"][0]["timeout"] == 5
+    assert isinstance(config["http"][0]["timeout"], int)
+
+
+def test_build_configuration_preserves_float_http_timeout():
+    gui = make_gui()
+    gui.service_inputs["http_timeout"].set("2.5")
+
+    config = gui._build_configuration_from_inputs()
+
+    assert config["http"][0]["timeout"] == 2.5
+    assert isinstance(config["http"][0]["timeout"], float)
+
+
+def test_written_yaml_contains_expected_groups_and_validates(tmp_path):
+    gui = make_gui()
+    path = tmp_path / "saved.yaml"
+    config = gui._build_configuration_from_inputs()
+
+    gui._write_configuration(path, config)
+
+    saved_config = yaml.safe_load(path.read_text(encoding="utf-8"))
+    assert list(saved_config) == ["processes", "tcp", "http"]
+    validate_config(saved_config)
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("process_name", "", "Invalid process name: enter a process name."),
+        ("tcp_port", "banana", "Invalid TCP port: enter a value between 1 and 65535."),
+        ("tcp_timeout", "zero", "Invalid TCP timeout: enter a number greater than 0."),
+        (
+            "http_url",
+            "ftp://example.com",
+            "Invalid HTTP URL: enter a URL starting with http:// or https://.",
+        ),
+        (
+            "http_timeout",
+            "zero",
+            "Invalid HTTP timeout: enter a number greater than 0.",
+        ),
+    ],
+)
+def test_invalid_save_inputs_prevent_writing(field, value, message):
+    gui = make_gui()
+    gui.service_inputs[field].set(value)
+
+    with (
+        patch("gui.app.filedialog.asksaveasfilename", return_value="saved.yaml"),
+        patch.object(gui, "_write_configuration") as write_configuration,
+    ):
+        gui._save_configuration()
+
+    write_configuration.assert_not_called()
+    assert gui.status_message.get() == f"Cannot save configuration: {message}"
+
+
+def test_final_validation_error_prevents_writing():
+    gui = make_gui()
+
+    with (
+        patch("gui.app.filedialog.asksaveasfilename", return_value="saved.yaml"),
+        patch("gui.app.validate_config", side_effect=ValueError("invalid structure")),
+        patch.object(gui, "_write_configuration") as write_configuration,
+    ):
+        gui._save_configuration()
+
+    write_configuration.assert_not_called()
+    assert gui.status_message.get() == "Cannot save configuration: invalid structure"
+
+
+def test_permission_error_during_save_is_handled_cleanly():
+    gui = make_gui()
+
+    with (
+        patch("gui.app.filedialog.asksaveasfilename", return_value="saved.yaml"),
+        patch.object(
+            gui,
+            "_write_configuration",
+            side_effect=PermissionError("access denied"),
+        ),
+    ):
+        gui._save_configuration()
+
+    assert gui.status_message.get() == "Could not save configuration: access denied"
+
+
+def test_os_error_during_save_is_handled_cleanly():
+    gui = make_gui()
+
+    with (
+        patch("gui.app.filedialog.asksaveasfilename", return_value="saved.yaml"),
+        patch.object(gui, "_write_configuration", side_effect=OSError("disk full")),
+    ):
+        gui._save_configuration()
+
+    assert gui.status_message.get() == "Could not save configuration: disk full"
+
+
+def test_successful_save_updates_status_and_configuration_label():
+    gui = make_gui()
+
+    with (
+        patch(
+            "gui.app.filedialog.asksaveasfilename",
+            return_value=r"C:\configs\my-config.yaml",
+        ),
+        patch.object(gui, "_write_configuration"),
+    ):
+        gui._save_configuration()
+
+    assert gui.current_config_path == r"C:\configs\my-config.yaml"
+    assert gui.current_config_display.get() == "Configuration: my-config.yaml"
+    assert gui.status_message.get() == "Configuration saved: my-config.yaml"
+
+
+def test_saving_does_not_execute_checks_clear_results_or_change_overall():
+    gui = make_gui()
+    gui._store_latest_result(
+        "cpu",
+        {"metric": "cpu", "value": 10, "unit": "%", "status": "healthy"},
+    )
+    gui._store_latest_result(
+        "process",
+        {
+            "metric": "process",
+            "value": "explorer.exe",
+            "unit": "state",
+            "status": "healthy",
+            "running": True,
+        },
+    )
+    before_results = gui.latest_results.copy()
+    before_overall = gui.overall_status.get()
+
+    with (
+        patch("gui.app.filedialog.asksaveasfilename", return_value="saved.yaml"),
+        patch.object(gui, "_write_configuration"),
+        patch.object(gui, "_run_all_checks") as run_all,
+        patch.object(gui, "_run_process_check") as process,
+        patch.object(gui, "_run_tcp_check") as tcp,
+        patch.object(gui, "_run_http_check") as http,
+    ):
+        gui._save_configuration()
+
+    run_all.assert_not_called()
+    process.assert_not_called()
+    tcp.assert_not_called()
+    http.assert_not_called()
+    assert gui.latest_results == before_results
+    assert gui.overall_status.get() == before_overall
+
+
+def test_loaded_configuration_can_be_modified_saved_and_loaded_again(tmp_path):
+    gui = make_gui()
+    loaded_config = make_config(tcp_port=443)
+    save_path = tmp_path / "modified-demo.yaml"
+
+    gui._apply_configuration(loaded_config, "config.demo.yaml")
+    gui.service_inputs["tcp_port"].set("8443")
+    gui._write_configuration(save_path, gui._build_configuration_from_inputs())
+
+    reloaded_config = load_config(save_path)
+
+    assert reloaded_config["tcp"][0]["port"] == 8443
+
+
+def test_save_workflow_writes_current_field_values(tmp_path):
+    gui = make_gui()
+    save_path = tmp_path / "current-values.yaml"
+    gui.service_inputs["process_name"].set("python.exe")
+    gui.service_inputs["tcp_host"].set("example.com")
+    gui.service_inputs["tcp_port"].set("8443")
+    gui.service_inputs["tcp_timeout"].set("4")
+    gui.service_inputs["http_url"].set("https://example.com/api/health")
+    gui.service_inputs["http_timeout"].set("6")
+
+    with patch("gui.app.filedialog.asksaveasfilename", return_value=str(save_path)):
+        gui._save_configuration()
+
+    saved_config = load_config(save_path)
+    assert saved_config == {
+        "processes": [{"name": "python.exe"}],
+        "tcp": [{"host": "example.com", "port": 8443, "timeout": 4}],
+        "http": [{"url": "https://example.com/api/health", "timeout": 6}],
+    }

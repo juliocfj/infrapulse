@@ -211,6 +211,12 @@ Phase 3 adds interactive Process, TCP, and HTTP checks. Users can enter targets 
 
 Phase 4 adds real Overall Health calculation using the same InfraPulse health engine as the CLI. Any completed `CRITICAL` check makes Overall Health `CRITICAL`; otherwise any completed `WARNING` check makes it `WARNING`; otherwise completed checks are `HEALTHY`. Uptime is informational and does not affect Overall Health.
 
+Phase 5 adds a Load Configuration button. YAML files can populate the GUI service fields for Process, TCP, and HTTP checks without automatically running checks. The GUI currently uses the first Process, TCP, and HTTP target from each configured list, while the CLI continues to support multiple targets.
+
+Phase 6 adds Save Configuration support. Launch the GUI with `python -m gui.app`, enter targets manually or load a YAML configuration, run individual checks or Run All Checks, and save the current GUI targets to YAML if desired. The GUI currently supports one Process, one TCP target, and one HTTP target at a time.
+
+The GUI now uses a redesigned dashboard-style layout with light and dark themes. The CLI remains the stable v1.0.0 interface.
+
 The GUI is still under development and is not yet the stable interface.
 
 ## Docker
